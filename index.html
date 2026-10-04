@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Leerklok</title>
+
+  <style>
+    :root {
+      --hour-color: #12337a;   /* donkerblauw: uren / kleine wijzer */
+      --minute-color: #e53935; /* rood: minuten / grote wijzer */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .hour-text {
+      color: var(--hour-color);
+    }
+
+    .min-text {
+      color: var(--minute-color);
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #222;
+    }
+
+    .container {
+      flex: none;
+      transform-origin: center center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 25px;
+    }
+
+    /* Klok + invulvelden naast elkaar */
+    .main {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 50px;
+    }
+
+    /* RECHTERKANT: digitale klokken + uitspraak */
+    .side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 440px;
+      max-width: 100%;
+    }
+
+    /* ANALOGE KLOK */
+    .clock {
+      position: relative;
+      width: 440px;
+      height: 440px;
+      background: white;
+      border: 14px solid #111;
+      border-radius: 50%;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+      user-select: none;
+      touch-action: none;
+    }
+
+    /* CIJFERS */
+    .number {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 42px;
+      height: 42px;
+      margin-left: -21px;
+      margin-top: -21px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      font-size: 30px;
+      font-weight: 600;
+      z-index: 2;
+
+      transform-origin: center center;
+    }
+
+    /* MINUUTSTREEPJES */
+    .tick {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 3px;
+      height: 10px;
+      background: #222;
+      border-radius: 2px;
+
+      transform-origin: 50% 0;
+      z-index: 1;
+    }
+
+    .tick.five {
+      width: 5px;
+      height: 16px;
+    }
+
+    /* WIJZERS */
+    .hand {
+      position: absolute;
+      left: 50%;
+      bottom: 50%;
+      transform-origin: 50% 100%;
+      border-radius: 10px 10px 4px 4px;
+      cursor: grab;
+      z-index: 5;
+      touch-action: none;
+    }
+
+    .hand:active {
+      cursor: grabbing;
+    }
+
+    .hour-hand {
+      width: 15px;
+      height: 112px;
+      background: var(--hour-color);
+      margin-left: -7.5px;
+    }
+
+    .minute-hand {
+      width: 9px;
+      height: 163px;
+      background: var(--minute-color);
+      margin-left: -4.5px;
+    }
+
+    /* MIDDENPUNT */
+    .center-dot {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 22px;
+      height: 22px;
+      margin-left: -11px;
+      margin-top: -11px;
+      border-radius: 50%;
+      background: #111;
+      border: 4px solid white;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* INVULVELDEN: DIGITALE TIJDEN */
+    .digital-container {
+      width: 100%;
+      margin-top: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .digital {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: white;
+      border: 3px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .colon {
+      font-size: 32px;
+      font-weight: bold;
+    }
+
+    /* Elk invulveld zit in een .field, zodat het kader en het
+       vinkje/kruisje samen kunnen veranderen. */
+    .field {
+      position: relative;
+    }
+
+    .time-input {
+      width: 70px;
+      height: 62px;
+      font-family: inherit;
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      background: white;
+      border: 3px solid #555;
+      border-radius: 10px;
+      outline: none;
+    }
+
+    .hour-input { color: var(--hour-color); }
+    .min-input  { color: var(--minute-color); }
+
+    .time-input:focus,
+    .spoken-input:focus,
+    .dd-button:focus-visible {
+      box-shadow: 0 0 0 4px rgba(30, 111, 217, 0.35);
+    }
+
+    /* DROPDOWN (dagdeel) */
+    .dd-button {
+      height: 62px;
+      min-width: 150px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-family: inherit;
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+      background: white;
+      border: 3px solid #555;
+      border-radius: 10px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .caret {
+      font-size: 16px;
+    }
+
+    .dd-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 100%;
+      margin: 0;
+      padding: 4px;
+      list-style: none;
+      background: white;
+      border: 3px solid #555;
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+      z-index: 20;
+    }
+
+    .dd-menu[hidden] {
+      display: none;
+    }
+
+    .dd-item {
+      display: block;
+      width: 100%;
+      padding: 8px 12px;
+      margin: 2px 0;
+      font-family: inherit;
+      font-size: 20px;
+      font-weight: 600;
+      text-align: left;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Kleuren per dagdeel (gekozen dagdeel kleurt de knop) */
+    .nacht   { background: #dcecff; color: #245b9f; }
+    .ochtend { background: #fff4bd; color: #8a6c00; }
+    .middag  { background: #dff4d8; color: #347126; }
+    .avond   { background: #eadcff; color: #633d91; }
+
+    /* UITSPRAAK (invulveld) */
+    .spoken-field {
+      margin-top: 18px;
+      width: 100%;
+    }
+
+    .spoken-input {
+      display: block;
+      width: 100%;
+      /* Vaste hoogte voor 2 regels, zodat het vak nooit van hoogte verandert */
+      height: calc(2 * 1.3em + 34px);
+      padding: 14px 24px;
+      font-family: inherit;
+      font-size: 25px;
+      line-height: 1.3;
+      font-weight: 600;
+      text-align: center;
+      color: #222;
+      background: white;
+      border: 3px solid #555;
+      border-radius: 14px;
+      resize: none;
+      outline: none;
+    }
+
+    /* NAKIJKEN: kader + vinkje / kruisje */
+    .field.correct .time-input,
+    .field.correct .dd-button,
+    .field.correct .spoken-input {
+      border-color: #2e9e4f;
+      background-color: #eaf8ee;
+    }
+
+    .field.wrong .time-input,
+    .field.wrong .dd-button,
+    .field.wrong .spoken-input {
+      border-color: #d93025;
+      background-color: #fdecea;
+    }
+
+    .mark {
+      display: none;
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 28px;
+      height: 28px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      line-height: 1;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .field.correct .mark { display: flex; background: #2e9e4f; }
+    .field.wrong .mark   { display: flex; background: #d93025; }
+
+    /* KNOPPEN ONDERAAN */
+    .actions {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .btn {
+      font-family: inherit;
+      font-size: 26px;
+      font-weight: bold;
+      padding: 12px 34px;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-check { background: #2e9e4f; }
+    .btn-clear { background: #777; }
+
+    @media (max-width: 900px) {
+      .main {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .side {
+        margin-top: 25px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .clock {
+        width: 340px;
+        height: 340px;
+        border-width: 11px;
+      }
+
+      .number {
+        font-size: 24px;
+        width: 36px;
+        height: 36px;
+        margin-left: -18px;
+        margin-top: -18px;
+      }
+
+      .hour-hand {
+        height: 85px;
+      }
+
+      .minute-hand {
+        height: 125px;
+      }
+
+      .spoken-input {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="main">
+
+      <div class="clock" id="clock">
+
+        <!-- Cijfers en streepjes worden automatisch geplaatst -->
+        <div id="numbers"></div>
+        <div id="ticks"></div>
+
+        <div class="hand hour-hand" id="hourHand"></div>
+        <div class="hand minute-hand" id="minuteHand"></div>
+
+        <div class="center-dot"></div>
+      </div>
+
+      <div class="side">
+
+        <div class="digital-container">
+
+          <div class="digital" id="digital1">
+            <div class="field">
+              <input class="time-input hour-input" id="hour1" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Uren, bovenste digitale klok">
+              <span class="mark"></span>
+            </div>
+            <span class="colon">:</span>
+            <div class="field">
+              <input class="time-input min-input" id="min1" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Minuten, bovenste digitale klok">
+              <span class="mark"></span>
+            </div>
+            <div class="field dropdown" id="dd1">
+              <button type="button" class="dd-button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dd-label">Kies…</span><span class="caret">▾</span>
+              </button>
+              <ul class="dd-menu" hidden></ul>
+              <span class="mark"></span>
+            </div>
+          </div>
+
+          <div class="digital" id="digital2">
+            <div class="field">
+              <input class="time-input hour-input" id="hour2" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Uren, onderste digitale klok">
+              <span class="mark"></span>
+            </div>
+            <span class="colon">:</span>
+            <div class="field">
+              <input class="time-input min-input" id="min2" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Minuten, onderste digitale klok">
+              <span class="mark"></span>
+            </div>
+            <div class="field dropdown" id="dd2">
+              <button type="button" class="dd-button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dd-label">Kies…</span><span class="caret">▾</span>
+              </button>
+              <ul class="dd-menu" hidden></ul>
+              <span class="mark"></span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="field spoken-field">
+          <textarea class="spoken-input" id="spokenInput" placeholder="Het is …" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="De tijd zoals je die uitspreekt"></textarea>
+          <span class="mark"></span>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-check" id="checkBtn">Controleren</button>
+      <button type="button" class="btn btn-clear" id="clearBtn">Wissen</button>
+    </div>
+
+  </div>
+
+
+  <script>
+    /* =========================================================
+       KLOKINSTELLING
+       ========================================================= */
+
+    let hours = 14;
+    let minutes = 4;
+
+    let previousMinute = minutes;
+
+
+    /* =========================================================
+       CIJFERS
+       ========================================================= */
+
+    const numbersContainer = document.getElementById("numbers");
+
+    const clockNumbers = [
+      "12", "1", "2", "3", "4", "5",
+      "6", "7", "8", "9", "10", "11"
+    ];
+
+    clockNumbers.forEach((number, index) => {
+
+      const angle = index * 30;
+
+      const numberElement = document.createElement("div");
+      numberElement.className = "number";
+      numberElement.textContent = number;
+
+      /*
+        De straal is iets kleiner gemaakt zodat de cijfers
+        netjes binnen de zwarte rand blijven.
+      */
+      numberElement.style.transform =
+        `rotate(${angle}deg) translateY(-157px) rotate(-${angle}deg)`;
+
+      numbersContainer.appendChild(numberElement);
+    });
+
+
+    /* =========================================================
+       PRECIES 60 MINUUTSTREEPJES
+       ========================================================= */
+
+    const ticksContainer = document.getElementById("ticks");
+
+    for (let minute = 0; minute < 60; minute++) {
+
+      const tick = document.createElement("div");
+      tick.className = "tick";
+
+      if (minute % 5 === 0) {
+        tick.classList.add("five");
+      }
+
+      /*
+        Elk streepje staat exact 6 graden van het vorige.
+        De straal is iets kleiner gemaakt zodat ook de
+        onderste streepjes netjes binnen de cirkel blijven.
+      */
+      tick.style.transform =
+        `rotate(${minute * 6}deg) translateY(-191px)`;
+
+      ticksContainer.appendChild(tick);
+    }
+
+
+    /* =========================================================
+       ELEMENTEN
+       ========================================================= */
+
+    const hourHand = document.getElementById("hourHand");
+    const minuteHand = document.getElementById("minuteHand");
+
+    /* Invulvelden */
+    const inputs = {
+      hour1: document.getElementById("hour1"),
+      min1: document.getElementById("min1"),
+      hour2: document.getElementById("hour2"),
+      min2: document.getElementById("min2"),
+      spoken: document.getElementById("spokenInput")
+    };
+
+    const dropdowns = [
+      document.getElementById("dd1"),
+      document.getElementById("dd2")
+    ];
+
+    /* De goede antwoorden bij de tijd op de klok (wordt in updateClock gezet) */
+    let expected = null;
+
+
+    /* =========================================================
+       HULPFUNCTIES
+       ========================================================= */
+
+    function pad(number) {
+      return String(number).padStart(2, "0");
+    }
+
+    function hourSpan(text) {
+      return `<span class="hour-text">${text}</span>`;
+    }
+
+    function minSpan(text) {
+      return `<span class="min-text">${text}</span>`;
+    }
+
+
+    function getPeriod(hour) {
+
+      if (hour >= 0 && hour < 6) {
+        return "Nacht";
+      }
+
+      if (hour >= 6 && hour < 12) {
+        return "Ochtend";
+      }
+
+      if (hour >= 12 && hour < 18) {
+        return "Middag";
+      }
+
+      return "Avond";
+    }
+
+
+    function getPeriodClass(hour) {
+
+      if (hour >= 0 && hour < 6) {
+        return "nacht";
+      }
+
+      if (hour >= 6 && hour < 12) {
+        return "ochtend";
+      }
+
+      if (hour >= 12 && hour < 18) {
+        return "middag";
+      }
+
+      return "avond";
+    }
+
+
+    function hourName(hour) {
+
+      const names = [
+        "twaalf",
+        "één",
+        "twee",
+        "drie",
+        "vier",
+        "vijf",
+        "zes",
+        "zeven",
+        "acht",
+        "negen",
+        "tien",
+        "elf"
+      ];
+
+      return names[hour % 12];
+    }
+
+
+    function numberName(number) {
+
+      const names = {
+        1: "één",
+        2: "twee",
+        3: "drie",
+        4: "vier",
+        5: "vijf",
+        6: "zes",
+        7: "zeven",
+        8: "acht",
+        9: "negen",
+        10: "tien",
+        11: "elf",
+        12: "twaalf",
+        13: "dertien",
+        14: "veertien",
+        15: "vijftien",
+        16: "zestien",
+        17: "zeventien",
+        18: "achttien",
+        19: "negentien",
+        20: "twintig",
+        21: "eenentwintig",
+        22: "tweeëntwintig",
+        23: "drieëntwintig",
+        24: "vierentwintig",
+        25: "vijfentwintig",
+        26: "zesentwintig",
+        27: "zevenentwintig",
+        28: "achtentwintig",
+        29: "negenentwintig"
+      };
+
+      return names[number] || String(number);
+    }
+
+
+    /* =========================================================
+       TIJD UITSPREKEN
+       ========================================================= */
+
+    function getSpokenTime(hour, minute) {
+
+      /*
+        Voor het uitspreken gebruiken we de 12-uurs klok.
+        Bijvoorbeeld:
+        14:04 -> vier minuten over twee
+        16:25 -> vijf minuten voor half vijf
+        18:40 -> tien over half zeven
+      */
+
+      const h = hour % 12;
+
+      const currentHourName = hourSpan(hourName(h));
+
+      const nextHour = (h + 1) % 12;
+      const nextHourName = hourSpan(hourName(nextHour));
+
+   /* 00 minuten */
+if (minute === 0) {
+  return `Het is ${currentHourName} uur.`;
+}
+
+      /* 01 t/m 14 minuten */
+      if (minute >= 1 && minute <= 14) {
+
+        if (minute === 1) {
+          return `Het is ${minSpan("één")} minuut over ${currentHourName}.`;
+        }
+
+        return `Het is ${minSpan(numberName(minute))} minuten over ${currentHourName}.`;
+      }
+  /* 15 minuten */
+      if (minute === 15) {
+        return `Het is ${minSpan("kwart")} over ${currentHourName}.`;
+      }
+
+      /* 16 t/m 29 minuten */
+      if (minute >= 16 && minute <= 29) {
+
+        const beforeHalf = 30 - minute;
+
+        if (beforeHalf === 1) {
+          return `Het is ${minSpan("één")} minuut voor half ${nextHourName}.`;
+        }
+
+        return `Het is ${minSpan(numberName(beforeHalf))} minuten voor half ${nextHourName}.`;
+      }
+    
+      /* 30 minuten */
+      if (minute === 30) {
+        return `Het is half ${nextHourName}.`;
+      }
+
+      /* 31 t/m 37 minuten */
+      if (minute >= 31 && minute <= 37) {
+
+        const afterHalf = minute - 30;
+
+        if (afterHalf === 1) {
+          return `Het is ${minSpan("één")} minuut over half ${nextHourName}.`;
+        }
+
+        return `Het is ${minSpan(numberName(afterHalf))} minuten over half ${nextHourName}.`;
+      }
+
+      /* 38 t/m 44 minuten */
+      if (minute >= 38 && minute <= 44) {
+
+        const afterHalf = minute - 30;
+
+        return `Het is ${minSpan(numberName(afterHalf))} minuten over half ${nextHourName}.`;
+      }
+
+      /* 45 minuten */
+      if (minute === 45) {
+        return `Het is ${minSpan("kwart")} voor ${nextHourName}.`;
+      }
+
+      /* 46 t/m 52 minuten */
+      if (minute >= 46 && minute <= 52) {
+
+        const beforeHour = 60 - minute;
+
+        if (beforeHour === 1) {
+          return `Het is ${minSpan("één")} minuut voor ${nextHourName}.`;
+        }
+
+        return `Het is ${minSpan(numberName(beforeHour))} minuten voor ${nextHourName}.`;
+      }
+
+      /* 53 t/m 59 minuten */
+      if (minute >= 53 && minute <= 59) {
+
+        const beforeHour = 60 - minute;
+
+        if (beforeHour === 1) {
+          return `Het is ${minSpan("één")} minuut voor ${nextHourName}.`;
+        }
+
+        return `Het is ${minSpan(numberName(beforeHour))} minuten voor ${nextHourName}.`;
+      }
+
+      return "";
+    }
+
+
+    /* =========================================================
+       KLOK BIJWERKEN
+       ========================================================= */
+
+    function updateClock() {
+
+      /* Kleine wijzer beweegt geleidelijk mee */
+      const hourAngle =
+        ((hours % 12) * 30) + (minutes * 0.5);
+
+      /* Grote wijzer */
+      const minuteAngle =
+        minutes * 6;
+
+      hourHand.style.transform =
+        `rotate(${hourAngle}deg)`;
+
+      minuteHand.style.transform =
+        `rotate(${minuteAngle}deg)`;
+
+
+      /* Goede antwoorden bepalen (de digitale tijden staan niet meer
+         op het scherm, de leerling vult ze zelf in) */
+      const secondHour =
+        (hours + 12) % 24;
+
+      const times = [hours, secondHour].sort((x, y) => x - y);
+
+      const spokenPlain =
+        getSpokenTime(hours, minutes).replace(/<[^>]*>/g, "");
+
+      /* Met en zonder het woord minuut/minuten is allebei goed */
+      const spokenNoMinutes =
+        spokenPlain.replace(/\s+(?:minuten|minuut)(?=\s)/g, "");
+
+      expected = {
+        hour1: times[0],
+        hour2: times[1],
+        minute: minutes,
+        period1: getPeriod(times[0]),
+        period2: getPeriod(times[1]),
+        spoken: [
+          normalizeText(spokenPlain),
+          normalizeText(spokenNoMinutes)
+        ]
+      };
+
+      /* De klok is veranderd: oude vinkjes en kruisjes kloppen niet meer */
+      clearStatuses();
+    }
+
+
+    /* =========================================================
+       INVULVELDEN: NAKIJKEN, WISSEN, DROPDOWNS
+       ========================================================= */
+
+    /* Kleine letters, geen accenten (één = een), geen leestekens */
+    function cleanText(text) {
+      return text
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    /* Getalwoorden (één t/m negenentwintig) worden cijfers, zodat
+       "vijf over half twee" en "5 over half 2" hetzelfde zijn */
+    let numberWordMap = null;
+
+    function normalizeText(text) {
+
+      if (!numberWordMap) {
+        numberWordMap = {};
+        for (let n = 1; n <= 29; n++) {
+          numberWordMap[cleanText(numberName(n))] = String(n);
+        }
+      }
+
+      return cleanText(text)
+        .split(" ")
+        .map(word => {
+          if (numberWordMap[word]) return numberWordMap[word];
+          if (/^0+\d+$/.test(word)) return String(parseInt(word, 10));
+          return word;
+        })
+        .join(" ");
+    }
+
+    /* "4" en "04" zijn allebei goed */
+    function numberMatches(value, expectedNumber) {
+      const v = value.trim();
+      return /^\d{1,2}$/.test(v) && parseInt(v, 10) === expectedNumber;
+    }
+
+    function fieldOf(element) {
+      return element.closest(".field");
+    }
+
+    function setStatus(field, ok) {
+
+      field.classList.remove("correct", "wrong");
+
+      const mark = field.querySelector(".mark");
+
+      if (ok === null) {
+        mark.textContent = "";
+        return;
+      }
+
+      field.classList.add(ok ? "correct" : "wrong");
+      mark.textContent = ok ? "✓" : "✕";
+    }
+
+    function clearStatuses() {
+      document.querySelectorAll(".field").forEach(field => {
+        setStatus(field, null);
+      });
+    }
+
+    function checkAnswers() {
+
+      /* De twee digitale klokken mogen in elke volgorde staan.
+         Elke rij wordt vergeleken met de bijpassende goede tijd. */
+      const targets = [
+        { hour: expected.hour1, period: expected.period1 },
+        { hour: expected.hour2, period: expected.period2 }
+      ];
+
+      const rows = [
+        { hour: inputs.hour1, min: inputs.min1, dd: dropdowns[0] },
+        { hour: inputs.hour2, min: inputs.min2, dd: dropdowns[1] }
+      ];
+
+      /* Welke goede tijd bedoelt deze rij? Eerst kijken we naar de uren,
+         dan naar het dagdeel, anders nemen we de plek op het scherm. */
+      function pickTarget(row, rowIndex) {
+
+        for (let t = 0; t < 2; t++) {
+          if (numberMatches(row.hour.value, targets[t].hour)) return t;
+        }
+
+        for (let t = 0; t < 2; t++) {
+          if (row.dd.dataset.value === targets[t].period) return t;
+        }
+
+        return rowIndex;
+      }
+
+      const first = pickTarget(rows[0], 0);
+      let second = pickTarget(rows[1], 1);
+
+      /* Beide rijen mogen niet dezelfde tijd zijn */
+      if (second === first) {
+        second = 1 - first;
+      }
+
+      [first, second].forEach((t, i) => {
+
+        const row = rows[i];
+        const target = targets[t];
+
+        setStatus(fieldOf(row.hour), numberMatches(row.hour.value, target.hour));
+        setStatus(fieldOf(row.min),  numberMatches(row.min.value, expected.minute));
+        setStatus(row.dd,            row.dd.dataset.value === target.period);
+      });
+
+      setStatus(
+        fieldOf(inputs.spoken),
+        expected.spoken.includes(normalizeText(inputs.spoken.value))
+      );
+    }
+
+    function resetDropdown(dd) {
+      const button = dd.querySelector(".dd-button");
+      dd.dataset.value = "";
+      dd.querySelector(".dd-label").textContent = "Kies…";
+      button.classList.remove("nacht", "ochtend", "middag", "avond");
+    }
+
+    function clearAnswers() {
+
+      Object.values(inputs).forEach(input => {
+        input.value = "";
+      });
+
+      dropdowns.forEach(resetDropdown);
+
+      clearStatuses();
+    }
+
+    function closeDropdowns() {
+      dropdowns.forEach(dd => {
+        dd.querySelector(".dd-menu").hidden = true;
+        dd.querySelector(".dd-button").setAttribute("aria-expanded", "false");
+      });
+    }
+
+    const PERIODS = [
+      { label: "Ochtend", cls: "ochtend" },
+      { label: "Middag",  cls: "middag" },
+      { label: "Avond",   cls: "avond" },
+      { label: "Nacht",   cls: "nacht" }
+    ];
+
+    dropdowns.forEach(dd => {
+
+      const button = dd.querySelector(".dd-button");
+      const menu = dd.querySelector(".dd-menu");
+
+      dd.dataset.value = "";
+
+      PERIODS.forEach(period => {
+
+        const item = document.createElement("li");
+        const option = document.createElement("button");
+
+        option.type = "button";
+        option.className = "dd-item " + period.cls;
+        option.textContent = period.label;
+
+        option.addEventListener("click", () => {
+
+          dd.dataset.value = period.label;
+          dd.querySelector(".dd-label").textContent = period.label;
+
+          button.classList.remove("nacht", "ochtend", "middag", "avond");
+          button.classList.add(period.cls);
+
+          setStatus(dd, null);
+          closeDropdowns();
+        });
+
+        item.appendChild(option);
+        menu.appendChild(item);
+      });
+
+      button.addEventListener("click", event => {
+
+        event.stopPropagation();
+
+        const wasOpen = !menu.hidden;
+
+        closeDropdowns();
+
+        if (!wasOpen) {
+          menu.hidden = false;
+          button.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+
+    document.addEventListener("click", closeDropdowns);
+
+    /* Alleen cijfers in de uren- en minutenvakken; wijzigen haalt
+       het vinkje/kruisje van dat vak weg */
+    ["hour1", "min1", "hour2", "min2"].forEach(key => {
+      inputs[key].addEventListener("input", () => {
+        inputs[key].value = inputs[key].value.replace(/\D/g, "");
+        setStatus(fieldOf(inputs[key]), null);
+      });
+    });
+
+    inputs.spoken.addEventListener("input", () => {
+      setStatus(fieldOf(inputs.spoken), null);
+    });
+
+    /* Enter = controleren */
+    Object.values(inputs).forEach(input => {
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          checkAnswers();
+        }
+      });
+    });
+
+    document.getElementById("checkBtn").addEventListener("click", checkAnswers);
+    document.getElementById("clearBtn").addEventListener("click", clearAnswers);
+
+
+    /* =========================================================
+       MINUUTWIJZER SLEPEN
+       ========================================================= */
+
+    let draggingMinute = false;
+    let draggingHour = false;
+
+
+    function getAngleFromPointer(event) {
+
+      const rect =
+        document.getElementById("clock").getBoundingClientRect();
+
+      const centerX =
+        rect.left + rect.width / 2;
+
+      const centerY =
+        rect.top + rect.height / 2;
+
+      const x =
+        event.clientX - centerX;
+
+      const y =
+        event.clientY - centerY;
+
+      let angle =
+        Math.atan2(y, x) * 180 / Math.PI + 90;
+
+      if (angle < 0) {
+        angle += 360;
+      }
+
+      return angle;
+    }
+
+
+    function moveMinuteHand(event) {
+
+      if (!draggingMinute) return;
+
+      const angle =
+        getAngleFromPointer(event);
+
+      const newMinute =
+        Math.round(angle / 6) % 60;
+
+
+      /*
+        Detecteer het passeren van 12.
+
+        59 -> 00:
+        grote wijzer gaat vooruit en kleine wijzer
+        gaat naar het volgende uur.
+
+        00 -> 59:
+        grote wijzer gaat achteruit en kleine wijzer
+        gaat naar het vorige uur.
+      */
+
+      let delta =
+        newMinute - previousMinute;
+
+      if (delta > 30) {
+        delta -= 60;
+      }
+
+      if (delta < -30) {
+        delta += 60;
+      }
+
+      if (
+        previousMinute >= 45 &&
+        newMinute <= 15 &&
+        delta > 0
+      ) {
+        hours =
+          (hours + 1) % 24;
+      }
+
+      else if (
+        previousMinute <= 15 &&
+        newMinute >= 45 &&
+        delta < 0
+      ) {
+        hours =
+          (hours - 1 + 24) % 24;
+      }
+
+
+      minutes =
+        newMinute;
+
+      previousMinute =
+        newMinute;
+
+      updateClock();
+    }
+
+
+    /* =========================================================
+       UURWIJZER SLEPEN
+       ========================================================= */
+
+    function moveHourHand(event) {
+
+      if (!draggingHour) return;
+
+      const angle =
+        getAngleFromPointer(event);
+
+      let newHour =
+        Math.round(angle / 30) % 12;
+
+      if (newHour === 0) {
+        newHour = 12;
+      }
+
+      /*
+        Behoud de 12-uurshelft waarin we zaten.
+      */
+
+      if (hours >= 12) {
+
+        hours =
+          newHour === 12
+            ? 12
+            : newHour + 12;
+
+      } else {
+
+        hours =
+          newHour === 12
+            ? 0
+            : newHour;
+      }
+
+      updateClock();
+    }
+
+
+    /* =========================================================
+       POINTER EVENTS
+       ========================================================= */
+
+    minuteHand.addEventListener("pointerdown", event => {
+
+      draggingMinute = true;
+
+      minuteHand.setPointerCapture(event.pointerId);
+
+      event.preventDefault();
+    });
+
+
+    hourHand.addEventListener("pointerdown", event => {
+
+      draggingHour = true;
+
+      hourHand.setPointerCapture(event.pointerId);
+
+      event.preventDefault();
+    });
+
+
+    minuteHand.addEventListener("pointermove", moveMinuteHand);
+    hourHand.addEventListener("pointermove", moveHourHand);
+
+
+    minuteHand.addEventListener("pointerup", () => {
+      draggingMinute = false;
+    });
+
+    hourHand.addEventListener("pointerup", () => {
+      draggingHour = false;
+    });
+
+
+    minuteHand.addEventListener("pointercancel", () => {
+      draggingMinute = false;
+    });
+
+    hourHand.addEventListener("pointercancel", () => {
+      draggingHour = false;
+    });
+
+
+    /* =========================================================
+       START
+       ========================================================= */
+
+    updateClock();
+
+
+    /* =========================================================
+       SCHALEN NAAR HET SCHERM (digibord)
+       Alles wordt samen vergroot, maximaal 2,5 keer, zo groot
+       als past zodat er niet gescrold hoeft te worden.
+       ========================================================= */
+
+    const MAX_SCALE = 2.5;
+
+    function fitToScreen() {
+
+      const container = document.querySelector(".container");
+
+      container.style.transform = "none";
+
+      const scale = Math.min(
+        MAX_SCALE,
+        window.innerWidth / container.offsetWidth,
+        window.innerHeight / container.offsetHeight
+      );
+
+      container.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener("resize", fitToScreen);
+    window.addEventListener("load", fitToScreen);
+    fitToScreen();
+
+  </script>
+
+</body>
+</html>
